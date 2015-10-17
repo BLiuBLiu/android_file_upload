@@ -1,0 +1,368 @@
+package com.example.imageuploadtest;
+
+import java.io.File;
+import java.io.FilenameFilter;
+
+import com.loopj.android.http.RequestParams;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.app.Dialog;
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends Activity implements FileUploadObserver {
+
+	public static final int RESULT_LOAD_IMAGE = 1;
+	public static final int RESULT_LOAD_VIDEO = 1111;
+	private Button btn_select_image;
+	private Button btn_upload;
+	private Button btn_select_video;
+	private Button btn_file;
+	private String path = null;
+	ProgressDialog dialog;
+	String encodedString;
+	RequestParams params = new RequestParams();
+	//
+	private String[] mFileList;
+	private File mPath = new File(Environment.getExternalStorageDirectory() + "//sdcard//");
+	private String mChosenFile;
+	private static final String FTYPE = ".txt";    
+	private static final int DIALOG_LOAD_FILE = 1000;
+	//
+	Bitmap bitmap;
+	TextView messageText;
+	String upLoadServerUri = null;
+	int serverResponseCode = 0;
+	
+	private final String TAG = "MainActivity";
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		
+		btn_select_image 	= (Button)    findViewById(R.id.btn_select);
+		btn_upload 			= (Button)    findViewById(R.id.btn_upload);
+		btn_select_video 	= (Button) 	  findViewById(R.id.btn_select_video);
+		btn_file 			= (Button)	  findViewById(R.id.btn_file);
+	//	img_selected 		= (ImageView) findViewById(R.id.img_selected);
+		
+		upLoadServerUri = "http://www.weavebytes.com/iyans/upload.php"; //fileToUpload
+		
+		// button click to select photo from gallery
+		btn_select_image.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+
+				Intent intent = new Intent(
+						Intent.ACTION_PICK,
+						android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+				startActivityForResult(intent, RESULT_LOAD_IMAGE);
+			}
+		});
+		// button to 
+		btn_select_video.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+
+				Intent intent = new Intent(
+						Intent.ACTION_PICK, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
+				startActivityForResult(intent, RESULT_LOAD_VIDEO);
+			}
+		});
+		
+		btn_upload.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+
+				dialog = ProgressDialog.show(MainActivity.this, "",
+						"Uploading file...", true);
+				dialog.setCancelable(true);
+				new Thread(new Runnable() {
+					public void run() {
+						runOnUiThread(new Runnable() {
+							public void run() {
+								//messageText.setText("uploading started.....");
+							}
+						});
+
+						uploadFile(path);
+					}
+				}).start();
+			}
+		});
+		btn_file.setOnClickListener(new View.OnClickListener(){
+			@Override
+			public void onClick(View v) {
+				 loadFileList();
+			}
+		});
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		// if image is to be clicked
+		switch (requestCode) {
+
+		case RESULT_LOAD_IMAGE:
+
+			if (requestCode == RESULT_LOAD_IMAGE)
+				if (resultCode == Activity.RESULT_OK) {
+					Uri selectedImage = data.getData();
+					path = GetPath(getApplicationContext(),
+							selectedImage);
+
+					// Show the Selected Image on ImageView
+				//	img_selected.setImageBitmap(BitmapFactory.decodeFile(path));
+
+					Toast.makeText(getApplicationContext(), "File Path" + path,
+							Toast.LENGTH_LONG).show();
+				}
+			break;
+			case RESULT_LOAD_VIDEO:
+
+				if (requestCode == RESULT_LOAD_VIDEO)
+					if (resultCode == Activity.RESULT_OK) {
+						
+						Uri selectedVideo = data.getData();
+						
+						path = GetPath(getApplicationContext(),
+								selectedVideo);
+
+						Toast.makeText(getApplicationContext(), "File Path" + path,
+								Toast.LENGTH_LONG).show();
+					}
+				break;
+		}
+	}
+
+	// method to get path of image
+	public static String GetPath(Context context, Uri uri) {
+
+		String[] filePathColumn = { MediaStore.Images.Media.DATA };
+
+		Cursor cursor = context.getContentResolver().query(uri, filePathColumn,
+				null, null, null);
+		cursor.moveToFirst();
+
+		int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+		String picturePath = cursor.getString(columnIndex);
+		cursor.close();
+
+		return picturePath;
+	}
+
+	public int uploadFile(String sourceFileUri) {
+
+		File sourceFile = new File(sourceFileUri);
+
+		if (!sourceFile.isFile()) {
+
+			dialog.dismiss();
+
+			Log.e("uploadFile", "Source File not exist :" + path);
+
+			runOnUiThread(new Runnable() {
+				public void run() {
+					messageText.setText("Source File not exist :" + path);
+				}
+			});
+
+			return 0;
+		}
+		
+		int ret = HttpUtils.uploadFile(upLoadServerUri, path, "fileToUpload", this);
+		dialog.dismiss();
+		
+		return ret;
+
+	} // End else block
+
+	@Override
+	public void uploadStatusUpdate(int error, long totalBytesRead, long totalBytes) {
+		Log.d(TAG, "====> file upload totalBytesRead . :  " + totalBytesRead);
+		Log.d(TAG, "====> file upload totalBytes . . . :  " + totalBytesRead);
+		Log.d(TAG, "====> file upload progress . . . . :  " + (float) totalBytesRead/totalBytes);		
+	}
+	
+	  public class FileDialog {
+          private static final String PARENT_DIR = "..";
+          private final String TAG = getClass().getName();
+          private String[] fileList;
+          private File currentPath;
+          public interface FileSelectedListener {
+              void fileSelected(File file);
+          }
+          public interface DirectorySelectedListener {
+              void directorySelected(File directory);
+          }
+          private ListenerList<FileSelectedListener> fileListenerList = new ListenerList<FileDialog.FileSelectedListener>();
+          private ListenerList<DirectorySelectedListener> dirListenerList = new ListenerList<FileDialog.DirectorySelectedListener>();
+          private final Activity activity;
+          private boolean selectDirectoryOption;
+          private String fileEndsWith;    
+
+          /**
+           * @param activity 
+           * @param initialPath
+           */
+          public FileDialog(Activity activity, File path) {
+              this.activity = activity;
+              if (!path.exists()) path = Environment.getExternalStorageDirectory();
+              loadFileList(path);
+          }
+
+          /**
+           * @return file dialog
+           */
+          public Dialog createFileDialog() {
+              Dialog dialog = null;
+              AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+
+              builder.setTitle(currentPath.getPath());
+              if (selectDirectoryOption) {
+                  builder.setPositiveButton("Select directory", new OnClickListener() {
+                      public void onClick(DialogInterface dialog, int which) {
+                          Log.d(TAG, currentPath.getPath());
+                          fireDirectorySelectedEvent(currentPath);
+                      }
+                  });
+              }
+
+              builder.setItems(fileList, new DialogInterface.OnClickListener() {
+                  public void onClick(DialogInterface dialog, int which) {
+                      String fileChosen = fileList[which];
+                      File chosenFile = getChosenFile(fileChosen);
+                      if (chosenFile.isDirectory()) {
+                          loadFileList(chosenFile);
+                          dialog.cancel();
+                          dialog.dismiss();
+                          showDialog();
+                      } else fireFileSelectedEvent(chosenFile);
+                  }
+              });
+
+              dialog = builder.show();
+              return dialog;
+          }
+
+
+          public void addFileListener(FileSelectedListener listener) {
+              fileListenerList.add(listener);
+          }
+
+          public void removeFileListener(FileSelectedListener listener) {
+              fileListenerList.remove(listener);
+          }
+
+          public void setSelectDirectoryOption(boolean selectDirectoryOption) {
+              this.selectDirectoryOption = selectDirectoryOption;
+          }
+
+          public void addDirectoryListener(DirectorySelectedListener listener) {
+              dirListenerList.add(listener);
+          }
+
+          public void removeDirectoryListener(DirectorySelectedListener listener) {
+              dirListenerList.remove(listener);
+          }
+
+          /**
+           * Show file dialog
+           */
+          public void showDialog() {
+              createFileDialog().show();
+          }
+
+          private void fireFileSelectedEvent(final File file) {
+              fileListenerList.fireEvent(new FireHandler<FileDialog.FileSelectedListener>() {
+                  public void fireEvent(FileSelectedListener listener) {
+                      listener.fileSelected(file);
+                  }
+              });
+          }
+
+          private void fireDirectorySelectedEvent(final File directory) {
+              dirListenerList.fireEvent(new FireHandler<FileDialog.DirectorySelectedListener>() {
+                  public void fireEvent(DirectorySelectedListener listener) {
+                      listener.directorySelected(directory);
+                  }
+              });
+          }
+
+          private void loadFileList(File path) {
+              this.currentPath = path;
+              List<String> r = new ArrayList<String>();
+              if (path.exists()) {
+                  if (path.getParentFile() != null) r.add(PARENT_DIR);
+                  FilenameFilter filter = new FilenameFilter() {
+                      public boolean accept(File dir, String filename) {
+                          File sel = new File(dir, filename);
+                          if (!sel.canRead()) return false;
+                          if (selectDirectoryOption) return sel.isDirectory();
+                          else {
+                              boolean endsWith = fileEndsWith != null ? filename.toLowerCase().endsWith(fileEndsWith) : true;
+                              return endsWith || sel.isDirectory();
+                          }
+                      }
+                  };
+                  String[] fileList1 = path.list(filter);
+                  for (String file : fileList1) {
+                      r.add(file);
+                  }
+              }
+              fileList = (String[]) r.toArray(new String[]{});
+          }
+
+          private File getChosenFile(String fileChosen) {
+              if (fileChosen.equals(PARENT_DIR)) return currentPath.getParentFile();
+              else return new File(currentPath, fileChosen);
+          }
+
+          public void setFileEndsWith(String fileEndsWith) {
+              this.fileEndsWith = fileEndsWith != null ? fileEndsWith.toLowerCase() : fileEndsWith;
+          }
+       }
+
+  class ListenerList<L> {
+      private List<L> listenerList = new ArrayList<L>();
+
+      public interface FireHandler<L> {
+          void fireEvent(L listener);
+      }
+
+      public void add(L listener) {
+          listenerList.add(listener);
+      }
+
+      public void fireEvent(FireHandler<L> fireHandler) {
+          List<L> copy = new ArrayList<L>(listenerList);
+          for (L l : copy) {
+              fireHandler.fireEvent(l);
+          }
+      }
+
+      public void remove(L listener) {
+          listenerList.remove(listener);
+      }
+
+      public List<L> getListenerList() {
+          return listenerList;
+      }
+  }
+}

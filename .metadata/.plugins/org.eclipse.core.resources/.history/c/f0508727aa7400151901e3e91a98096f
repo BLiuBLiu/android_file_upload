@@ -1,0 +1,54 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.imageuploadtest.MainActivity" >
+
+    <Button
+        android:id="@+id/btn_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:text="Select Image" />
+
+    <Button
+        android:id="@+id/btn_select_video"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btn_select"
+        android:layout_marginTop="10dp"
+         android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:text="Select Video" />
+
+    <Button
+        android:id="@+id/btn_file"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btn_select_video"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+         android:layout_centerHorizontal="true"
+        android:text="Select File" />
+
+    <Button
+        android:id="@+id/btn_upload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btn_file"
+        android:layout_marginTop="10dp"
+         android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:text="Upload Image" />
+
+    <ImageView
+        android:id="@+id/img_selected"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_below="@id/btn_upload"
+        android:src="@drawable/ic_launcher" />
+
+</RelativeLayout>

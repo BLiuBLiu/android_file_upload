@@ -1,0 +1,303 @@
+  /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+ *                       _____  _____                                        *
+ *					    / __  \/  ___|       				                 *
+ *					   | |  |_|| |                                           *
+ *                     | |____ | |     _____  ____			                 *
+ *					   \_____ \| |    /__   \/	_ |		 	    			 *
+ *					    _    | | |     __|  ||  __|			   				 *
+ *					   | |___| | |___ / __  || |			   				 *
+ *					   \______/\_____|\_____/|_|               				 *
+ *                                                              			 *
+ * DESCRIPTION     The Utility(Utils) class for SCap desktop applicaiton.   *
+ * CREATED         2012-03-01                                                *
+ * AUTHOR          WeaveBytes InfoTech R&D Team                              *
+ *                                                                           *
+ * Copyright (c) 2011 onwards by WeaveBytes InfoTech Pvt. Ltd.               *
+ * Please reports bugs at weavebytes@gmail.com                               *
+ *                                                                           *
+ * This file may be distributed and/or modified under the terms of the       *
+ * GNU General Public License version 2 as published by the Free Software    *
+ * Foundation. (See COPYING.GPL for details.)                                *
+ *                                                                           *
+ * This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE   *
+ * WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ 
+import java.awt.image.BufferedImage;
+import java.awt.AWTException;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import javax.swing.*;
+import java.io.File;
+import java.awt.*;
+
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.sql.Timestamp;
+import java.util.Date;
+import java.net.*;
+import java.io.*;
+
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+
+/***********************************************************
+*
+* Generic utilites, convenience and helper functions.
+*
+***********************************************************/
+
+
+public class Utils{	
+	/*
+	* Function to take screen shot 
+	*/
+	public static boolean takeScreenShot(String filepath) {
+	 L.d("[Utils] :: takeScreenShot()...");
+	 
+	 boolean status = false;
+	 try {         
+            Robot robot = new Robot();
+			
+            Dimension    dim = Toolkit.getDefaultToolkit().getScreenSize();
+			BufferedImage bi = robot.createScreenCapture(new Rectangle(dim));
+            ImageIO.write(bi, "jpg", new File(filepath));
+            status = true;
+        } catch (AWTException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+		return status;
+	}
+	
+	public static boolean confirmExit(JFrame frame, String msg, String title) {
+        JOptionPane pane    = new JOptionPane(msg);
+        Object[]    options = new String[] { "Yes, exit", "No" };
+        pane.setOptions(options);
+        JDialog dialog = pane.createDialog(frame, title);
+        dialog.show();
+        Object obj = pane.getValue(); 
+        int result = -1;
+        for (int k = 0; k < options.length; k++)
+            if (options[k].equals(obj))
+                result = k;
+				
+        return result == 0;
+    }
+	
+	public static long timestamp() {
+	    java.util.Date date= new java.util.Date();
+	    Timestamp ts =  new Timestamp(date.getTime());
+		return ts.getTime()/1000;
+	}
+	
+  public static boolean uploadImage(String apiUrl, Hashtable params, String filepath) throws Exception {
+
+	HttpURLConnection  conn        = null;
+	BufferedReader     br          = null;
+	DataOutputStream   dos         = null;
+	DataInputStream    inStream    = null;
+
+	InputStream        is          = null;
+	OutputStream       os          = null;
+	String             lineEnd     = "\r\n";
+	String             twoHyphens  = "--";
+	String             boundary    =  "*****";
+	int                maxBufSize  = 1*1024*1024;
+	byte[]             buffer;
+
+
+	int bytesRead, bytesAvailable, bufferSize;
+
+	try {
+		FileInputStream fileInputStream = new FileInputStream( new File(filepath) );
+
+		// open a URL connection to the Servlet 
+		URL url = new URL(apiUrl);
+
+		// Open a HTTP connection to the URL
+		conn = (HttpURLConnection) url.openConnection();
+
+		// Allow Inputs
+		conn.setDoInput(true);
+
+		// Allow Outputs
+		conn.setDoOutput(true);
+
+		// Don't use a cached copy.
+		conn.setUseCaches(false);
+
+		conn.setRequestMethod("POST");
+		conn.setRequestProperty("Connection", "Keep-Alive"); 
+		conn.setRequestProperty("Content-Type", "multipart/form-data;boundary="+boundary);
+   
+		dos = new DataOutputStream( conn.getOutputStream() );
+  
+        Enumeration keys = params.keys();
+ 
+		while(keys.hasMoreElements()){
+			String key = (String)keys.nextElement();
+			String value = (String)params.get(key);
+		
+   		    dos.writeBytes(twoHyphens + boundary + lineEnd);
+		    dos.writeBytes("Content-Disposition: form-data; name=\"" + key + "\"" + lineEnd);
+		    dos.writeBytes(lineEnd);
+		    dos.writeBytes(value);
+		    dos.writeBytes(lineEnd);
+		}
+  	
+		dos.writeBytes(twoHyphens + boundary + lineEnd);
+		dos.writeBytes("Content-Disposition: form-data; name=\"scap_file\";" + " filename=\"" + filepath +"\"" + lineEnd);
+		dos.writeBytes(lineEnd);
+
+		// create a buffer of maximum size
+		bytesAvailable = fileInputStream.available();
+		bufferSize     = Math.min(bytesAvailable, maxBufSize);
+		buffer         = new byte[bufferSize];
+
+		// read file and write it into form...
+		bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+		while (bytesRead > 0) {
+			dos.write(buffer, 0, bufferSize);
+			bytesAvailable = fileInputStream.available();
+			bufferSize     = Math.min(bytesAvailable, maxBufSize);
+			bytesRead      = fileInputStream.read(buffer, 0, bufferSize);
+		}
+
+		dos.writeBytes(lineEnd);
+		dos.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
+	
+		/*close streams*/
+		fileInputStream.close();
+		dos.flush();
+		dos.close();
+
+	}catch (MalformedURLException ex){
+		L.w("[Utils] :: uploadImage() : " + ex);
+	    return false;
+	}
+	catch (IOException ioe){
+		L.w("[Utils] :: uploadImage() : " + ioe);
+	    return false;
+	}
+
+    /* read server response */
+	try {
+		inStream = new DataInputStream ( conn.getInputStream() );
+		String str;
+		while (( str = inStream.readLine()) != null) {
+			L.d("[Utils] :: uploadImage() : Server response is: " + str);
+			L.d("");
+		}
+		inStream.close();
+	}
+	catch (IOException ioex){
+		L.w("[Utils] :: uploadImage() : From (ServerResponse): " + ioex);
+        return false;   
+	}
+	return true;
+  }/*uploadImage*/
+  
+  
+  /* days hours mins secs millisecs */
+  public static String elapsedTimeDetailed(long start, long end) {
+
+        String auxRet = "";
+
+        long aux = end - start;
+        long days = 0, hours = 0, minutes = 0, seconds = 0, milliseconds = 0;
+        // days
+        if (aux > 24 * 60 * 60 * 1000) {
+            days = aux / (24 * 60 * 60 * 1000);
+        }
+        aux = aux % (24 * 60 * 60 * 1000);
+        // hours
+        if (aux > 60 * 60 * 1000) {
+            hours = aux / (60 * 60 * 1000);
+        }
+        aux = aux % (60 * 60 * 1000);
+        // minutes
+        if (aux > 60 * 1000) {
+            minutes = aux / (60 * 1000);
+        }
+        aux = aux % (60 * 1000);
+        // seconds
+        if (aux > 1000) {
+            seconds = aux / (1000);
+        }
+        milliseconds = aux % 1000;
+
+        if (days > 0) {
+            auxRet = days + " days ";
+        }
+        if (days != 0 || hours > 0) {
+            auxRet += hours + " hours ";
+        }
+        if (days != 0 || hours != 0 || minutes > 0) {
+            auxRet += minutes + " minutes ";
+        }
+        if (days != 0 || hours != 0 || minutes != 0 || seconds > 0) {
+            auxRet += seconds + " seconds ";
+        }
+        auxRet += milliseconds + " milliseconds ";
+
+        return auxRet;
+    }
+	
+	
+	/* days hours mins */
+	public static String elapsedTime(long start, long end) {
+
+        String auxRet = "";
+
+        long aux = end - start;
+        long days = 0, hours = 0, minutes = 0, seconds = 0, milliseconds = 0;
+        // days
+        if (aux > 24 * 60 * 60 * 1000) {
+            days = aux / (24 * 60 * 60 * 1000);
+        }
+        aux = aux % (24 * 60 * 60 * 1000);
+        // hours
+        if (aux > 60 * 60 * 1000) {
+            hours = aux / (60 * 60 * 1000);
+        }
+        aux = aux % (60 * 60 * 1000);
+        // minutes
+        if (aux > 60 * 1000) {
+            minutes = aux / (60 * 1000);
+        }
+        aux = aux % (60 * 1000);
+        // seconds
+        if (aux > 1000) {
+            seconds = aux / (1000);
+        }
+        milliseconds = aux % 1000;
+
+        if (days > 0) {
+            auxRet = days + " days ";
+        }
+        /*if (days != 0 || hours > 0) {
+            auxRet += hours + " hours ";
+        }
+		if (days != 0 || hours != 0 || minutes > 0) {
+            auxRet += minutes + " minutes ";
+        }*/
+        
+		auxRet += hours + " hours and ";
+        auxRet += minutes + " minutes ";
+        return auxRet;
+		
+		
+	}
+	public static String getCurrentDateTimeString() {
+		Calendar currentDate       = Calendar.getInstance();
+		SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		String dateNow = formatter.format(currentDate.getTime());
+		return dateNow;		
+	}
+	
+}/*Utils*/

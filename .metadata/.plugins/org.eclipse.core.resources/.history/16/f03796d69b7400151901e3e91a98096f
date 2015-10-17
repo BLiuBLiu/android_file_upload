@@ -1,0 +1,5 @@
+package com.example.imageuploadtest;
+
+public interface FileUploadObserver {
+
+}
